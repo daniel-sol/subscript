@@ -13,6 +13,8 @@ import yaml
 from ert import ErtScript
 from ert.shared.plugins.plugin_manager import hook_implementation  # type: ignore
 
+from fmu.config.utilities import yaml_load
+from fmu.dataio import ExportData
 from subscript import __version__, getLogger
 from subscript.fmuobs.parsers import (
     compute_date_from_days,
@@ -366,13 +368,40 @@ def fmuobs(
     dump_results(dframe, csv, yml, resinsight, ertobs, PosixPath(inputfile).parent)
 
 
+def export_w_meta(observations, config_path, case_path):
+    """Export dictionary with corresponding metadata as json
+
+    Args:
+        observations (dict): the dictionary
+        config_path (str): path to fmu config file
+        case_path (str): path to an fmu case
+
+    Returns:
+        str: path to exported json file
+    """
+    config = yaml_load(config_path)
+
+    exp = ExportData(
+        config=config,
+        name="observations",
+        tagname="all",
+        content="property",
+        casepath=case_path,
+        fmu_context="case",
+    )
+    export_path = exp.export(observations)
+    # LOGGER.debug("Exported to %s:", export_path)
+    return export_path
+
+
 def dump_results(
     dframe: pd.DataFrame,
     csvfile: Optional[str] = None,
     yamlfile: Optional[str] = None,
     resinsightfile: Optional[str] = None,
     ertfile: Optional[str] = None,
-    parent_dir: PosixPath = PosixPath("."),
+    parent_dir: Optional[PosixPath] = PosixPath("."),
+    fmu_config_file: Optional[str] = None,
 ) -> None:
     """Dump dataframe with ERT observations to CSV and/or YML
     format to disk. Writes to stdout if filenames are "-". Skips
@@ -431,6 +460,10 @@ def dump_results(
             Path(ertfile).write_text(ertobs_str, encoding="utf8")
         else:
             print(ertobs_str)
+
+    if fmu_config_file is not None:
+        obs_dict_2_sumo = df2obsdict(dframe)
+        export_w_meta(obs_dict_2_sumo, fmu_config_file)
 
 
 class FmuObs(ErtScript):
