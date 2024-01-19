@@ -1,5 +1,6 @@
 """fmuobs is a converter tool for observation files used in assisted
 history matching"""
+import re
 import argparse
 import logging
 import os
@@ -108,6 +109,7 @@ def get_parser() -> argparse.ArgumentParser:
         "--yaml",
         type=str,
         help="YAML output-file. Use '-' to write to stdout.",
+        default="observations.yml",
     )
     parser.add_argument(
         "--resinsight",
@@ -119,7 +121,9 @@ def get_parser() -> argparse.ArgumentParser:
         "--csv",
         type=str,
         help="Name of output CSV file. Use '-' to write to stdout.",
+        default="observations.csv",
     )
+
     parser.add_argument(
         "--starttime",
         "--startdate",
@@ -136,6 +140,22 @@ def get_parser() -> argparse.ArgumentParser:
             "This path should be set to the directory of the ERT config file, "
             "and the include file statements must be relative to this."
         ),
+    )
+
+    with_metadata = parser.add_argument_group(
+        title="with_metadata",
+        description="These arguments need to be in place if one want to include metadata",
+    )
+    with_metadata.add_argument(
+        "--ert_case_path",
+        type=str,
+        help="Path to ert case, dependent on an included global variables file",
+    )
+    with_metadata.add_argument(
+        "--fmu_config_file",
+        type=str,
+        help="Path to fmu config  file with compulsory metadata",
+        default="../../fmuconfig/output/global_variables.yml",
     )
 
     parser.add_argument("-v", "--verbose", action="store_true", help="Be verbose")
@@ -215,6 +235,7 @@ def autoparse_file(filename: str) -> Tuple[Optional[str], Union[pd.DataFrame, di
     # Pylint exceptions as this code is made to catch these errors and act on them.
     # pylint: disable=unsubscriptable-object, no-member
     # pylint: disable=unsupported-assignment-operation
+    logger.info("Reading from file %s", filename)
     try:
         dframe = pd.read_csv(filename, sep=";")
         if {"DATE", "VECTOR", "VALUE", "ERROR"}.issubset(
@@ -293,6 +314,8 @@ def main() -> None:
         debug=args.debug,
         starttime=args.starttime,
         includedir=args.includedir,
+        ert_case_path=args.ert_case_path,
+        fmu_config_file=args.fmu_config_file,
     )
 
 
@@ -306,6 +329,8 @@ def fmuobs(
     debug: bool = False,
     starttime: Optional[str] = None,
     includedir: Optional[bool] = None,
+    ert_case_path: Optional[str] = None,
+    fmu_config_file: str = "../../fmuconfig/output/global_variables.yml",
 ):
     # pylint: disable=too-many-arguments
     """Alternative to main() with named arguments"""
@@ -365,10 +390,25 @@ def fmuobs(
                 "Please verify the output file"
             )
     logger.debug("After all the hard work, what is returned is this %s", dframe)
-    dump_results(dframe, csv, yml, resinsight, ertobs, PosixPath(inputfile).parent)
+    dump_results(
+        dframe,
+        csv,
+        yml,
+        resinsight,
+        ertobs,
+        PosixPath(inputfile).parent,
+        ert_case_path,
+        fmu_config_file,
+    )
 
 
-def export_w_meta(observations, config_path, case_path):
+def export_w_meta(
+    observations: Union[dict, pd.DataFrame],
+    config_path: str,
+    case_path: str,
+    observations_name: str = "observations",
+    create_case: bool = True,
+) -> str:
     """Export dictionary with corresponding metadata as json
 
     Args:
@@ -380,10 +420,18 @@ def export_w_meta(observations, config_path, case_path):
         str: path to exported json file
     """
     config = yaml_load(config_path)
+    case_posix_path = Path(case_path)
 
+    if not case_posix_path.exists():
+        if create_case:
+            case_posix_path.mkdir(parents=True)
+        else:
+            raise RuntimeError(
+                f"Script is trying to export to non existing case ({case_path})"
+            )
     exp = ExportData(
         config=config,
-        name="observations",
+        name=re.sub(r"\.+", "", observations_name),
         tagname="all",
         content="property",
         casepath=case_path,
@@ -401,6 +449,7 @@ def dump_results(
     resinsightfile: Optional[str] = None,
     ertfile: Optional[str] = None,
     parent_dir: Optional[PosixPath] = PosixPath("."),
+    ert_case_path: Optional[str] = None,
     fmu_config_file: Optional[str] = None,
 ) -> None:
     """Dump dataframe with ERT observations to CSV and/or YML
@@ -414,11 +463,15 @@ def dump_results(
         resinsightfile: Filename
         ertfile: Filename
     """
-
+    if ert_case_path is not None:
+        yamlfile = True
+    logger.debug("Parent folder for observations: %s", parent_dir)
     if not (csvfile or yamlfile or resinsightfile or ertfile):
         logger.warning("No output filenames provided")
     if csvfile:
-        if csvfile != __MAGIC_STDOUT__:
+        if ert_case_path is not None:
+            export_w_meta(dframe, fmu_config_file, ert_case_path)
+        elif csvfile != __MAGIC_STDOUT__:
             logger.info("Writing observations as CSV to %s", csvfile)
             dframe.to_csv(csvfile, index=False)
         else:
@@ -432,7 +485,9 @@ def dump_results(
             logger.error("None of your observations are supported in YAML")
         yaml_str = yaml.safe_dump(obs_dict_for_yaml)
 
-        if yamlfile != __MAGIC_STDOUT__:
+        if ert_case_path is not None:
+            export_w_meta(obs_dict_for_yaml, fmu_config_file, ert_case_path)
+        elif yamlfile != __MAGIC_STDOUT__:
             logger.info(
                 "Writing observations in YAML (webviz) format to file: %s", yamlfile
             )
@@ -460,10 +515,6 @@ def dump_results(
             Path(ertfile).write_text(ertobs_str, encoding="utf8")
         else:
             print(ertobs_str)
-
-    if fmu_config_file is not None:
-        obs_dict_2_sumo = df2obsdict(dframe)
-        export_w_meta(obs_dict_2_sumo, fmu_config_file)
 
 
 class FmuObs(ErtScript):
