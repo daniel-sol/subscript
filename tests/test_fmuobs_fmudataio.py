@@ -4,7 +4,6 @@ import yaml
 import shutil
 from pathlib import Path
 from subscript.fmuobs.fmuobs import export_w_meta, main
-from subscript.fmuobs.fmuobs import get_parser
 import pytest
 
 TEST_DATA = Path(__file__).parent / "testdata_fmuobs/drogon"
@@ -13,7 +12,7 @@ TEST_DATA_FMU_CONFIG_PATH = TEST_DATA / "proj/"
 RELATIVE_PATH_TO_CONFIG = "fmuconfig/output/global_variables.yml"
 
 
-def _setup_ert_run_setting(root_path, file_ending="json", export_folder="dictionaries"):
+def _setup_ert_run_setting(root_path, file_ending, export_folder="dictionaries"):
     """Replicate fmu like structure for test
 
     Args:
@@ -51,7 +50,7 @@ def test_export_w_meta(tmp_path):
         observations = yaml.safe_load(stream)
     print(observations)
 
-    project_path, case_path, expected_ex_path = _setup_ert_run_setting(tmp_path)
+    project_path, case_path, expected_ex_path = _setup_ert_run_setting(tmp_path, "json")
     os.chdir(tmp_path)
     assert len(observations) > 0
     ex_path = export_w_meta(
@@ -100,9 +99,18 @@ def test_command_line(tmp_path, mocker, export_control, file_ending, export_fold
     )
     main()
     exports = list(case_path.glob("share/results/**/*.*"))
-    assert len(exports) == 4, f"there where {len(exports)} produced, not 4"
-    ex_paths = str(
-        [file_path for file_path in exports if not file_path.name.startswith(".")]
-    )
-    for ex_path in ex_paths:
-        _assert_files_correctly_produced(ex_path, expected_path)
+    exp_listing = "\n".join([str(exp) for exp in exports])
+    assert (
+        len(exports) == 2
+    ), f"there where {len(exports)} produced, not 2, {exp_listing}"
+    ex_path = [
+        file_path for file_path in exports if not file_path.name.startswith(".")
+    ][0]
+
+    assert (
+        ex_path.suffix == "." + file_ending
+    ), f"Not exported with right file ending {ex_path.suffix} vs {file_ending}"
+    assert (
+        ex_path.parent.name == export_folder
+    ), f"Not exported to right folder {ex_path.parent.name} vs {export_folder}"
+    _assert_files_correctly_produced(str(ex_path), expected_path)

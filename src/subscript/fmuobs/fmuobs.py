@@ -109,7 +109,7 @@ def get_parser() -> argparse.ArgumentParser:
         "--yaml",
         type=str,
         help="YAML output-file. Use '-' to write to stdout.",
-        default="observations.yml",
+        default=None,
     )
     parser.add_argument(
         "--resinsight",
@@ -121,7 +121,7 @@ def get_parser() -> argparse.ArgumentParser:
         "--csv",
         type=str,
         help="Name of output CSV file. Use '-' to write to stdout.",
-        default="observations.csv",
+        default=None,
     )
 
     parser.add_argument(
@@ -463,14 +463,12 @@ def dump_results(
         resinsightfile: Filename
         ertfile: Filename
     """
-    if ert_case_path is not None:
-        yamlfile = True
     logger.debug("Parent folder for observations: %s", parent_dir)
     if not (csvfile or yamlfile or resinsightfile or ertfile):
         logger.warning("No output filenames provided")
-    if csvfile:
+    if csvfile is not None:
         if ert_case_path is not None:
-            export_w_meta(dframe, fmu_config_file, ert_case_path)
+            export_w_meta(dframe, fmu_config_file, ert_case_path, csvfile)
         elif csvfile != __MAGIC_STDOUT__:
             logger.info("Writing observations as CSV to %s", csvfile)
             dframe.to_csv(csvfile, index=False)
@@ -479,14 +477,19 @@ def dump_results(
             signal.signal(signal.SIGPIPE, signal.SIG_DFL)
             dframe.to_csv(sys.stdout, index=False)
 
-    if yamlfile:
+    if yamlfile is not None:
         obs_dict_for_yaml = df2obsdict(dframe, parent_dir)
         if not obs_dict_for_yaml and not dframe.empty:
             logger.error("None of your observations are supported in YAML")
         yaml_str = yaml.safe_dump(obs_dict_for_yaml)
 
         if ert_case_path is not None:
-            export_w_meta(obs_dict_for_yaml, fmu_config_file, ert_case_path)
+            if not yamlfile.endswith(".json"):
+                logger.warning(
+                    "Fmu-dataio can only export "
+                    "json format for dictionaries, you will end up with json"
+                )
+            export_w_meta(obs_dict_for_yaml, fmu_config_file, ert_case_path, yamlfile)
         elif yamlfile != __MAGIC_STDOUT__:
             logger.info(
                 "Writing observations in YAML (webviz) format to file: %s", yamlfile
