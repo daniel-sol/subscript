@@ -464,6 +464,13 @@ def dump_results(
         ertfile: Filename
     """
     logger.debug("Parent folder for observations: %s", parent_dir)
+    logger.debug(
+        "csvfile: %s, yamlfile: %s, rifile %s, ertfile %s",
+        csvfile,
+        yamlfile,
+        resinsightfile,
+        ertfile,
+    )
     if not (csvfile or yamlfile or resinsightfile or ertfile):
         logger.warning("No output filenames provided")
     if csvfile is not None:
