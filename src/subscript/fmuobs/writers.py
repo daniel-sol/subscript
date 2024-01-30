@@ -313,7 +313,6 @@ def general_df2obsdict(general_df: pd.DataFrame, parent_dir: PosixPath) -> dict:
     general_df.dropna(axis=1, how="all", inplace=True)
     assert isinstance(general_df, pd.DataFrame), "You didn't input a dataframe"
     logger.debug("This is/These are the general observations to include %s", general_df)
-    logger.debug("Parent directory of the extracted observations is %s", parent_dir)
     gen_obs_dict = {}
     gen_obs_files = {}
     for _, general_row in general_df.iterrows():
@@ -447,7 +446,6 @@ def df2obsdict(obs_df: pd.DataFrame, parent_dir: PosixPath = PosixPath(".")) -> 
     Returns:
         dict
     """
-    logger.debug("Parent directory carried over is %s", parent_dir)
     obsdict = {}
     if "CLASS" not in obs_df:
         return {}

@@ -1,4 +1,5 @@
 """Read contents from simple text files"""
+
 import logging
 import re
 import warnings
@@ -263,7 +264,7 @@ def tidy_general_obs_keys(generals, config=None):
     rouges = set(conversions.keys()).symmetric_difference(general_keys)
     if len(rouges) > 0:
         warnings.warn(
-            f"These keys {rouges} are neither standards, nor provided a user"
+            f"These keys {list(rouges)} are neither standards, nor provided a user"
             " defined name but kept as is"
         )
         LOGGER.debug("Have tidied, results are %s", generals)
