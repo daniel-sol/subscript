@@ -101,8 +101,8 @@ HISTORY_OBSERVATION GWIT:FIELD
 
 HISTORY_OBSERVATION GGIT:FIELD { ERROR = 0.20; ERROR_MODE = RELMIN; ERROR_MIN = 100; };
 
--- THE include OPTION IS NO LONGER AVAILABLE
--- HISTORY_OBSERVATION WOPR:P1 { include "hist_obs_wells.txt"; };
+-- THE include OPTION IS NO LONGER AVAILABLE in ert, but still tested
+HISTORY_OBSERVATION WOPR:P1 { include "hist_obs_wells.txt"; };
 -- HISTORY_OBSERVATION WOPR:P2 { include "hist_obs_wells.txt"; };
 -- HISTORY_OBSERVATION WOPR:P3 { include "hist_obs_wells.txt"; };
 -- HISTORY_OBSERVATION WOPR:P4 { include "hist_obs_wells.txt"; };
