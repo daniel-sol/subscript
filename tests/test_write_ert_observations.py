@@ -10,7 +10,7 @@ def test_parse_config_elements():
     """Test parsing of the individual elements in a config file"""
 
 
-def write_controls_from_config():
+def test_write_controls_from_config():
     """Test writing of controls file from config file"""
     pass
 
