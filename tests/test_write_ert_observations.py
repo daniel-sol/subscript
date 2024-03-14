@@ -15,6 +15,11 @@ def test_write_controls_from_config():
     pass
 
 
+def test_dump_w_fmu_dataio():
+    """Test writing files to disk with fmu_dataio"""
+    pass
+
+
 def write_summary_observations_from_config():
     """Test writing of summary observations from config file"""
 
