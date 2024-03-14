@@ -1,9 +1,16 @@
 """Test functionality for writing from config file"""
 
+from pathlib import Path
+import pandas as pd
+from subscript.fmuobs._config import read_config_file
+
+CONFIG_FILE = str(Path(__file__).parent / "testdata_fmuobs/fmuobs_config.ods")
+
 
 def test_reading_config():
     """Test reading of config file"""
-    pass
+    config = read_config_file(CONFIG_FILE)
+    assert isinstance(config, pd.DataFrame)
 
 
 def test_parse_config_elements():
