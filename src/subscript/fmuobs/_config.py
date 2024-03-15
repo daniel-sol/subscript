@@ -1,31 +1,45 @@
 """Code related to fmobs config stuff"""
 
 import logging
-from typing import Union
+from typing import Union, List
 from pathlib import Path, PosixPath
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 
 def _read_csv(tabular_file_path: Union[str, PosixPath], sep: str) -> pd.DataFrame:
-    logger = logging.getLogger(__name__ + "._read_table")
+    """Read csv
+
+    Args:
+        tabular_file_path (Union[str, PosixPath]): the csv file path
+        sep (str): separator
+
+    Returns:
+        pd.DataFrame: _description_
+    """
+    logger = logging.getLogger(__name__ + "._read_csv")
     logger.debug("Performing the actual attempt to read %s as csv", tabular_file_path)
     return pd.read_csv(tabular_file_path, sep=sep)
 
 
 def _ensure_low_cap_columns(dataframe: pd.DataFrame) -> pd.DataFrame:
+    """Make all column names lower case
+
+    Args:
+        dataframe (pd.DataFrame): the dataframe to modify
+
+    Returns:
+        pd.DataFrame: the modified dataframe
+    """
     dataframe.columns = [col.lower() for col in dataframe.columns]
     return dataframe
 
 
-def read_tabular_file(
-    tabular_file_path: Union[str, PosixPath], sep=","
-) -> pd.DataFrame:
+def read_tabular_file(tabular_file_path: Union[str, PosixPath]) -> pd.DataFrame:
     """Read csv or excel file into pandas dataframe
 
     Args:
         tabular_file_path (str): path to file
-        sep (str, optional): seperator for csv files. Defaults to ",".
 
     Returns:
         pd.DataFrame: the dataframe read from file
@@ -34,30 +48,111 @@ def read_tabular_file(
     logger.info("Reading file %s", tabular_file_path)
     dataframe = pd.DataFrame()
     try:
-        dataframe = _read_csv(tabular_file_path, sep)
+        dataframe = pd.read_csv(tabular_file_path, sep=",")
     except UnicodeDecodeError:
-        dataframe = pd.read_excel(tabular_file_path)
+        dataframe = pd.read_excel(tabular_file_path, engine="odf")
     nr_cols = dataframe.shape[1]
     logger.debug("Nr of columns are %s", nr_cols)
     if nr_cols == 1:
         logger.debug("Wrong number of columns, trying with other separators")
         for separator in [";", " "]:
             logger.debug("Trying with |%s| as separator", separator)
-            dataframe = _read_csv(tabular_file_path, separator)
+            dataframe = pd.read_csv(tabular_file_path, separator)
             if dataframe.shape[1] > 1:
                 break
-    if dataframe.shape == 1:
-        raise IOError("File is not parsed correctly, check if there is something wrong")
+    if dataframe.shape[1] == 1:
+        raise IOError(
+            "File is not parsed correctly, check if there is something wrong!"
+        )
 
-    return dataframe
-
-
-def extract_rft_obs(in_frame: pd.DataFrame) -> dict:
-    pass
+    return _ensure_low_cap_columns(dataframe)
 
 
-def extract_general(in_frame: pd.DataFrame) -> dict:
-    pass
+def extract_rft(in_frame: pd.DataFrame) -> pd.DataFrame:
+    """Extract rft from file
+
+    Args:
+        in_frame (pd.DataFrame): the dataframe to extract from
+
+    Returns:
+        pd.DataFrame: modified results from dataframe
+    """
+    logger = logging.getLogger(__name__ + ".extract_rft")
+    all_rft_obs = []
+    unique_ids = "unique_identifier"
+    in_frame[unique_ids] = (
+        in_frame["well_name"] + "_" + in_frame["date"].astype(str).str.replace("-", "_")
+    )
+    restart = 1
+    for unique_id in in_frame[unique_ids].unique():
+        logger.debug("Making obs frame for %s", unique_id)
+        key_frame = in_frame.loc[in_frame[unique_ids] == unique_id]
+        report_frame = key_frame.copy()
+        report_frame["restart"] = restart
+        restart += 1
+        all_rft_obs.append(report_frame)
+    all_rft_obs = pd.concat(all_rft_obs)
+    all_rft_obs["lable"] = (
+        all_rft_obs[unique_ids] + "_" + all_rft_obs["restart"].astype(str)
+    )
+    return all_rft_obs
+
+
+def extract_general(in_frame: pd.DataFrame, lable_name: str) -> pd.DataFrame:
+    """Modify dataframe from general observations
+
+    Args:
+        in_frame (pd.DataFrame): the original dataframe
+        lable_name (str): anme of label
+
+    Returns:
+        pd.DataFrame: modified dataframe
+    """
+    general_observations = in_frame
+    general_observations["lable"] = lable_name
+    return general_observations
+
+
+def extract_from_row(row, parent_folder) -> List[pd.DataFrame]:
+    """Extract results from row in config file
+
+    Args:
+        row (pd.Series): the row to extract from
+        parent_folder (str, PosixPath): the folder to use when reading file
+
+    Returns:
+        pd.DataFrame: the extracted results
+    """
+    logger = logging.getLogger(__name__ + ".extract_from_row")
+    readers = {
+        "summary": extract_summary,
+        "rft": extract_rft,
+        "general": extract_general,
+    }
+    input_file = row["input_file"]
+    if row["label"] != "":
+        label = Path(input_file).stem.upper()
+    else:
+        label = row["label"]
+    obs_type = row["observation_type"]
+
+    content = row["content"]
+    if pd.isna(content):
+        content = "summary"
+    logger.debug("Content is %s", content)
+    obs_type = row["observation_type"]
+    file_contents = readers[content](read_tabular_file(parent_folder / input_file))
+    if obs_type == "summary":
+        return_summary = file_contents
+        return_summary["CLASS"] = "SUMMARY_OBSERVATION"
+        class_name = "SUMMARY_OBSERVATION"
+    else:
+        class_name = "GENERAL_OBSERVATION"
+        return_summary = pd.DataFrame(
+            [class_name, label, label, input_file],
+            columns=["CLASS", "LABEL", "DATA", "OBS_FILE"],
+        )
+    return file_contents, return_summary
 
 
 def extract_summary(in_frame: pd.DataFrame, key_identifier="vector") -> dict:
@@ -65,7 +160,8 @@ def extract_summary(in_frame: pd.DataFrame, key_identifier="vector") -> dict:
 
     Args:
         in_frame (pd.DataFrame): the dataframe to extract from
-        key_identifier (str, optional): name of column to be used to make lables. Defaults to "VECTOR".
+        key_identifier (str, optional): name of column to make lables.
+        Defaults to "VECTOR".
 
     Returns:
         dict: the results as a dictionary
@@ -106,7 +202,7 @@ def extract_summary(in_frame: pd.DataFrame, key_identifier="vector") -> dict:
 
 def read_config_file(
     config_file_name: Union[str, PosixPath], parent_folder: Union[str, PosixPath] = None
-) -> pd.DataFrame:
+) -> List[pd.DataFrame]:
     """Parse config file
 
     Args:
@@ -123,23 +219,18 @@ def read_config_file(
     else:
         parent_folder = Path(parent_folder)
 
-    obs_data = {}
-    obs_summary = []
+    obs_data = []
+    obs_sum_frame = []
+
     for rnr, row in config.iterrows():
-        file_contents = read_tabular_file(parent_folder / row["input_file"])
         if row["active"] != "yes":
             logger.info("row %s is deactivated", rnr)
             continue
-        file_contents = _ensure_low_cap_columns(file_contents)
-        logger.debug(file_contents)
-        obs_type = row["observation_type"]
-        content = row["content"]
-        obs_type = row["observation_type"]
-        if obs_type not in obs_data:
-            obs_data[obs_type] = {}
-        if content not in obs_data[obs_type]:
-            obs_data[obs_type][content] = []
-        obs_data[obs_type][content].append(file_contents)
 
-    logger.debug(obs_data)
-    return config
+        row_obs, row_summary = extract_from_row(row, parent_folder)
+        obs_data.append(row_obs)
+        obs_sum_frame.append(row_summary)
+
+    logger.debug("Summary to be exported is %s", obs_sum_frame)
+    logger.debug("Observation data to be exported is %s", obs_sum_frame)
+    return obs_sum_frame, obs_data
