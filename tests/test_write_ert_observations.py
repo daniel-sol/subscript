@@ -13,9 +13,17 @@ def test_reading_config(ending):
     """Test reading of config file"""
     correct_columns = ["observation_type", "content", "input_file", "active"]
     config = read_config_file(CONFIG_FILE_STEM + ending)
-    assert isinstance(config, pd.DataFrame)
-    assert config.columns.tolist() == correct_columns
-    assert config.shape == (3, 4)
+    assert isinstance(
+        config, pd.DataFrame
+    ), f"should return pd.Dataframe but is {type(config)}"
+    read_columns = config.columns.tolist()
+    assert (
+        read_columns == correct_columns
+    ), f"Columns should be {read_columns}, but are {correct_columns}"
+    assert config.shape == (
+        3,
+        4,
+    ), f"Expecting shape (3,4) but result was {config.shape}"
 
 
 def test_parse_config_elements():
