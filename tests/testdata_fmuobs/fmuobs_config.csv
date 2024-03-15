@@ -1,0 +1,4 @@
+observation_type,content,input_file,active
+summary,,summary_input_file.txt,yes
+general,rft,rft_input_file.txt,yes
+general,seismic,seismic_input_file.txt,yes

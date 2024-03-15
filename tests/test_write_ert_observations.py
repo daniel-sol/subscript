@@ -3,14 +3,19 @@
 from pathlib import Path
 import pandas as pd
 from subscript.fmuobs._config import read_config_file
+import pytest
 
-CONFIG_FILE = str(Path(__file__).parent / "testdata_fmuobs/fmuobs_config.ods")
+CONFIG_FILE_STEM = str(Path(__file__).parent / "testdata_fmuobs/fmuobs_config")
 
 
-def test_reading_config():
+@pytest.mark.parametrize("ending", [".ods", ".xls", ".xlsx", ".csv", "_ms_sep.csv"])
+def test_reading_config(ending):
     """Test reading of config file"""
-    config = read_config_file(CONFIG_FILE)
+    correct_columns = ["observation_type", "content", "input_file", "active"]
+    config = read_config_file(CONFIG_FILE_STEM + ending)
     assert isinstance(config, pd.DataFrame)
+    assert config.columns.tolist() == correct_columns
+    assert config.shape == (3, 4)
 
 
 def test_parse_config_elements():
