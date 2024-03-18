@@ -250,4 +250,6 @@ def read_config_file(
 
     logger.debug("Summary to be exported is %s", obs_sum_frame)
     logger.debug("Observation data to be exported is %s", obs_sum_frame)
+    obs_sum_frame = pd.concat(obs_sum_frame)
+    obs_data = pd.concat(obs_data)
     return obs_sum_frame, obs_data
