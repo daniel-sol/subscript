@@ -230,7 +230,7 @@ def read_config_file(
     """
     logger = logging.getLogger(__name__ + ".read_config_file")
     config = read_tabular_file(config_file_name)
-    logger.debug("Shape of config file: %s", config.shape)
+    logger.debug("Shape of config : %s", config.shape)
     if parent_folder is None:
         parent_folder = Path(config_file_name).parent
     else:
