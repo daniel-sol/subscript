@@ -32,18 +32,25 @@ def read_tabular_file(tabular_file_path: Union[str, PosixPath]) -> pd.DataFrame:
     logger.info("Reading file %s", tabular_file_path)
     dataframe = pd.DataFrame()
     try:
+        read_info = "csv, with sep ,"
         dataframe = pd.read_csv(tabular_file_path, sep=",")
     except UnicodeDecodeError:
-        dataframe = pd.read_excel(tabular_file_path, engine="odf")
+        dataframe = pd.read_excel(tabular_file_path)
+        read_info = "excel"
     nr_cols = dataframe.shape[1]
     logger.debug("Nr of columns are %s", nr_cols)
     if nr_cols == 1:
         logger.debug("Wrong number of columns, trying with other separators")
         for separator in [";", " "]:
             logger.debug("Trying with |%s| as separator", separator)
-            dataframe = pd.read_csv(tabular_file_path, separator)
+            dataframe = pd.read_csv(tabular_file_path, sep=separator)
+            read_info = f"csv with sep {separator}"
             if dataframe.shape[1] > 1:
                 break
+
+    logger.debug("Way of reading %s", read_info)
+    logger.debug("Shape of frame %s", dataframe.shape)
+
     if dataframe.shape[1] == 1:
         raise IOError(
             "File is not parsed correctly, check if there is something wrong!"
