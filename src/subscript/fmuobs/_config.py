@@ -3,26 +3,10 @@
 import logging
 from typing import Union, List
 from pathlib import Path, PosixPath
-import numpy as np
 import pandas as pd
 
 
-def _read_csv(tabular_file_path: Union[str, PosixPath], sep: str) -> pd.DataFrame:
-    """Read csv
-
-    Args:
-        tabular_file_path (Union[str, PosixPath]): the csv file path
-        sep (str): separator
-
-    Returns:
-        pd.DataFrame: _description_
-    """
-    logger = logging.getLogger(__name__ + "._read_csv")
-    logger.debug("Performing the actual attempt to read %s as csv", tabular_file_path)
-    return pd.read_csv(tabular_file_path, sep=sep)
-
-
-def _ensure_low_cap_columns(dataframe: pd.DataFrame) -> pd.DataFrame:
+def _ensure_caps_columns(dataframe: pd.DataFrame) -> pd.DataFrame:
     """Make all column names lower case
 
     Args:
@@ -31,7 +15,7 @@ def _ensure_low_cap_columns(dataframe: pd.DataFrame) -> pd.DataFrame:
     Returns:
         pd.DataFrame: the modified dataframe
     """
-    dataframe.columns = [col.lower() for col in dataframe.columns]
+    dataframe.columns = [col.upper() for col in dataframe.columns]
     return dataframe
 
 
