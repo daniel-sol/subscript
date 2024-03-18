@@ -130,20 +130,35 @@ def extract_from_row(
     content = row["CONTENT"]
 
     file_contents = read_obs_frame(input_file, label, content)
-
+    class_name = "GENERAL_OBSERVATION"
     if obs_type == "summary":
         return_summary = file_contents
         return_summary["CLASS"] = "SUMMARY_OBSERVATION"
         class_name = "SUMMARY_OBSERVATION"
         obs_file = "in main file"
 
+    elif content == "rft":
+
+        return_summary = pd.DataFrame(
+            (str(input_file.parent) + "/" + file_contents["WELL_NAME"] + ".obs").values,
+            columns=["OBS_FILE"],
+        )
+
+        return_summary["LABEL"] = label + "_" + file_contents["WELL_NAME"]
+        return_summary["CLASS"] = class_name
+        return_summary["DATA"] = label + "_" + file_contents["WELL_NAME"]
+        logger.debug("RFT")
+        logger.debug("These are the results %s", return_summary)
+
     else:
+
         class_name = "GENERAL_OBSERVATION"
         return_summary = pd.DataFrame(
             [[class_name, label, label, obs_file]],
             columns=["CLASS", "LABEL", "DATA", "OBS_FILE"],
         )
     file_contents["OUTPUT"] = obs_file
+
     return file_contents, return_summary
 
 
