@@ -19,7 +19,7 @@ def _fixture_summary_df():
     """
     summary = pd.read_csv(TEST_DATA / "drogon_summary_input.txt", sep=" ")
 
-    return conf._ensure_low_cap_columns(summary)
+    return conf._ensure_caps_columns(summary)
 
 
 @pytest.fixture(scope="session", name="rft_df")
@@ -27,7 +27,7 @@ def _fixture_rft_df():
     """Return drogon rft input as dataframe"""
     rft = pd.read_excel(TEST_DATA / "drogon_rft_input.ods")
 
-    return conf._ensure_low_cap_columns(rft)
+    return conf._ensure_caps_columns(rft)
 
 
 @pytest.fixture(scope="session", name="seismic_df")
@@ -35,7 +35,7 @@ def _fixture_seismic_df():
     """Return drogon seismic input as dataframe"""
     seismic = pd.read_csv(TEST_DATA / "drogon_seismic_input.csv")
 
-    return conf._ensure_low_cap_columns(seismic)
+    return conf._ensure_caps_columns(seismic)
 
 
 def test_extract_summary(summary_df):
@@ -56,7 +56,7 @@ def test_extract_general(seismic_df):
 @pytest.mark.parametrize("ending", [".ods", ".xls", ".xlsx", ".csv", "_ms_sep.csv"])
 def test_read_tabular_file(ending):
     """Test reading of config file"""
-    correct_columns = ["observation_type", "content", "input_file", "label", "active"]
+    correct_columns = ["OBSERVATION_TYPE", "CONTENT", "INPUT_FILE", "LABEL", "ACTIVE"]
     config = conf.read_tabular_file(str(TEST_DATA / "fmuobs_config") + ending)
     assert isinstance(
         config, pd.DataFrame

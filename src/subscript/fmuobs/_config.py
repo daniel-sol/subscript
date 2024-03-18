@@ -240,7 +240,7 @@ def read_config_file(
     obs_sum_frame = []
 
     for rnr, row in config.iterrows():
-        if row["active"] != "yes":
+        if row["ACTIVE"] != "yes":
             logger.info("row %s is deactivated", rnr)
             continue
 
