@@ -56,7 +56,7 @@ def read_tabular_file(tabular_file_path: Union[str, PosixPath]) -> pd.DataFrame:
             "File is not parsed correctly, check if there is something wrong!"
         )
 
-    return _ensure_low_cap_columns(dataframe)
+    return _ensure_caps_columns(dataframe)
 
 
 def extract_rft(in_frame: pd.DataFrame) -> pd.DataFrame:
