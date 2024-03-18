@@ -117,38 +117,62 @@ def extract_from_row(
         pd.DataFrame: the extracted results
     """
     logger = logging.getLogger(__name__ + ".extract_from_row")
-    readers = {
-        "summary": extract_summary,
-        "rft": extract_rft,
-        "general": extract_general,
-    }
-    input_file = row["input_file"]
-    if row["label"] != "":
+
+    input_file = parent_folder / row["INPUT_FILE"]
+    obs_file = input_file.parent / (input_file.stem + ".obs")
+    logger.debug("File reference in row %s", input_file)
+    if row["LABEL"] != "":
         label = Path(input_file).stem.upper()
     else:
-        label = row["label"]
-    obs_type = row["observation_type"]
+        label = row["LABEL"]
+    obs_type = row["OBSERVATION_TYPE"]
 
-    content = row["content"]
-    if pd.isna(content):
-        content = "summary"
-    logger.debug("Content is %s", content)
-    obs_type = row["observation_type"]
-    file_contents = readers[content](read_tabular_file(parent_folder / input_file))
+    content = row["CONTENT"]
+
+    file_contents = read_obs_frame(input_file, label, content)
+
     if obs_type == "summary":
         return_summary = file_contents
         return_summary["CLASS"] = "SUMMARY_OBSERVATION"
         class_name = "SUMMARY_OBSERVATION"
+        obs_file = "in main file"
+
     else:
         class_name = "GENERAL_OBSERVATION"
         return_summary = pd.DataFrame(
-            [class_name, label, label, input_file],
+            [[class_name, label, label, obs_file]],
             columns=["CLASS", "LABEL", "DATA", "OBS_FILE"],
         )
+    file_contents["OUTPUT"] = obs_file
     return file_contents, return_summary
 
 
-def extract_summary(in_frame: pd.DataFrame, key_identifier="vector") -> dict:
+def read_obs_frame(input_file: PosixPath, label: str, content: str) -> tuple:
+    """Read observation table and generate summary
+
+    Args:
+        input_file (PosixPath): the file where the data is
+        label (str): lable to be added for general obs
+        content (Str): what content to be read
+
+    Returns:
+        tuple: the actual observation data, the summary of observations for csv output
+    """
+
+    if pd.isna(content):
+        content = "SUMMARY"
+        file_contents = extract_summary(read_tabular_file(input_file))
+    elif content.upper() != "RFT":
+        content = "SUMMARY"
+        file_contents = extract_general(read_tabular_file(input_file), label)
+    else:
+        content = "RFT"
+        file_contents = extract_rft(read_tabular_file(input_file))
+
+    return file_contents
+
+
+def extract_summary(in_frame: pd.DataFrame, key_identifier="VECTOR") -> dict:
     """Extract summary to pd.Dataframe format for fmu obs
 
     Args:
