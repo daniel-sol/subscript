@@ -193,7 +193,7 @@ def extract_summary(in_frame: pd.DataFrame, key_identifier="VECTOR") -> dict:
         logger.debug("shape of data for %s %s", key, report_frame.shape)
         if key_frame.shape[0] == 1:
             logger.debug("Just one row")
-            obs_lable = key_frame["date"].values.tolist().pop().replace("-", "_")
+            obs_lable = key_frame["DATE"].values.tolist().pop().replace("-", "_")
             logger.debug(obs_lable)
 
         else:
@@ -202,16 +202,16 @@ def extract_summary(in_frame: pd.DataFrame, key_identifier="VECTOR") -> dict:
             obs_lable = range(key_frame.shape[0])
             logger.debug(range(key_frame.shape[0]))
         logger.debug("Adding label(s) %s", obs_lable)
-        report_frame["lable"] = obs_lable
+        report_frame["LABEL"] = obs_lable
         all_summary_obs.append(report_frame)
 
     logger.debug("Concatenating %s summary series", len(all_summary_obs))
     logger.debug("Last object has columns %s", all_summary_obs[-1].columns)
     all_summary_obs = pd.concat(all_summary_obs)
-    all_summary_obs["lable"] = (
+    all_summary_obs["LABEL"] = (
         all_summary_obs[key_identifier].str.replace(":", "_")
         + "_"
-        + all_summary_obs["lable"].astype(str)
+        + all_summary_obs["LABEL"].astype(str)
     )
     logger.debug("Returning results %s", all_summary_obs)
     return all_summary_obs
