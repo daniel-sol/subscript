@@ -119,7 +119,6 @@ def extract_from_row(
     logger = logging.getLogger(__name__ + ".extract_from_row")
 
     input_file = parent_folder / row["INPUT_FILE"]
-    obs_file = input_file.parent / (input_file.stem + ".obs")
     logger.debug("File reference in row %s", input_file)
     if row["LABEL"] != "":
         label = Path(input_file).stem.upper()
@@ -129,13 +128,19 @@ def extract_from_row(
 
     content = row["CONTENT"]
 
+    if ~isinstance(content, str):
+        content = "summary"
+
+    obs_file = input_file.parent / (content + "/" + input_file.stem + ".obs")
+
     file_contents = read_obs_frame(input_file, label, content)
+    file_contents["OUTPUT"] = obs_file
     class_name = "GENERAL_OBSERVATION"
     if obs_type == "summary":
         return_summary = file_contents
         return_summary["CLASS"] = "SUMMARY_OBSERVATION"
         class_name = "SUMMARY_OBSERVATION"
-        obs_file = "in main file"
+        obs_file = "main file"
 
     elif content == "rft":
 
@@ -143,6 +148,7 @@ def extract_from_row(
             (str(input_file.parent) + "/" + file_contents["WELL_NAME"] + ".obs").values,
             columns=["OBS_FILE"],
         )
+        file_contents["OUTPUT"] = return_summary
 
         return_summary["LABEL"] = label + "_" + file_contents["WELL_NAME"]
         return_summary["CLASS"] = class_name
@@ -157,7 +163,8 @@ def extract_from_row(
             [[class_name, label, label, obs_file]],
             columns=["CLASS", "LABEL", "DATA", "OBS_FILE"],
         )
-    file_contents["OUTPUT"] = obs_file
+
+    file_contents["CONTENT"] = content
 
     return file_contents, return_summary
 
@@ -266,5 +273,41 @@ def read_config_file(
     logger.debug("Summary to be exported is %s", obs_sum_frame)
     logger.debug("Observation data to be exported is %s", obs_sum_frame)
     obs_sum_frame = pd.concat(obs_sum_frame)
+    obs_sum_frame.drop_duplicates(inplace=True)
     obs_data = pd.concat(obs_data)
     return obs_sum_frame, obs_data
+
+
+def generate_rft_obs_files(rft_obs_data: pd.DataFrame, path):
+    """generate ert observations files for rft from observational data
+
+    Args:
+        rft_obs_data (pd.DataFrame): input dataframe
+        path (str): path to parent folder
+    """
+    logger = logging.getLogger(__name__ + ".generate_rft_obs_files")
+    logger.debug("Extracting from dataframe %s", rft_obs_data.head())
+    out_dir = Path(path)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    logger.debug("Exporting to %s", str(out_dir))
+
+    well_info_name = out_dir / "well_name_time_restart.txt"
+
+    pd.Series(rft_obs_data["unique_identifier"].unique()).to_csv(
+        well_info_name, index=False, header=False
+    )
+
+    for well_name in rft_obs_data.WELL_NAME.unique():
+
+        sub_set = rft_obs_data.loc[rft_obs_data.WELL_NAME == well_name]
+        observations = sub_set[["VALUE", "ERROR"]]
+        spatials = sub_set[["MD", "TVD", "X", "Y", "ZONE"]]
+        obs_file_name = sub_set["OUTPUT"].values.tolist()[0]
+        if not obs_file_name.parent.exists():
+            obs_file_name.parent.mkdir(parents=True)
+        observations.to_csv(obs_file_name, sep=" ", index=False, header=False)
+        logger.debug("Exporting observations to %s", str(obs_file_name))
+        # space_file_name = obs_file_name.stem + ".txt"
+        space_file_name = obs_file_name.parent / (obs_file_name.stem + ".txt")
+        logger.debug("Exporting spacial extras to %s", str(space_file_name))
+        spatials.to_csv(space_file_name, sep=" ", index=False, header=False)
